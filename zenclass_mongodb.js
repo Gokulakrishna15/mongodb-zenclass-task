@@ -34,4 +34,95 @@ db.company_drives.insertMany([
 db.mentors.insertMany([
   { name: "Mentor A", mentee_count: 20 },
   { name: "Mentor B", mentee_count: 10 }
+]); 
+// Topics taught in October 2020
+db.topics.find({
+  date: {
+    $gte: ISODate("2020-10-01"),
+    $lte: ISODate("2020-10-31")
+  }
+});
+
+// Tasks assigned in October 2020
+db.tasks.find({
+  date: {
+    $gte: ISODate("2020-10-01"),
+    $lte: ISODate("2020-10-31")
+  }
+});
+db.company_drives.find({
+  drive_date: {
+    $gte: ISODate("2020-10-15"),
+    $lte: ISODate("2020-10-31")
+  }
+});
+db.company_drives.aggregate([
+  {
+    $lookup: {
+      from: "users",
+      localField: "students_appeared",
+      foreignField: "name",
+      as: "appeared_students"
+    }
+  }
+]);
+db.codekata.aggregate([
+  {
+    $lookup: {
+      from: "users",
+      localField: "user",
+      foreignField: "name",
+      as: "user_info"
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      user: 1,
+      problems_solved: 1
+    }
+  }
+]);
+db.mentors.find({
+  mentee_count: { $gt: 15 }
+});
+db.attendance.aggregate([
+  {
+    $match: {
+      status: "absent",
+      date: {
+        $gte: ISODate("2020-10-15"),
+        $lte: ISODate("2020-10-31")
+      }
+    }
+  },
+  {
+    $lookup: {
+      from: "tasks",
+      let: { userName: "$user" },
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$user", "$$userName"] },
+                { $eq: ["$submitted", false] },
+                { $gte: ["$date", ISODate("2020-10-15")] },
+                { $lte: ["$date", ISODate("2020-10-31")] }
+              ]
+            }
+          }
+        }
+      ],
+      as: "unsubmitted_tasks"
+    }
+  },
+  {
+    $match: {
+      "unsubmitted_tasks.0": { $exists: true }
+    }
+  },
+  {
+    $count: "users_absent_and_not_submitted"
+  }
 ]);
